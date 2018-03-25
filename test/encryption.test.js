@@ -14,10 +14,18 @@ const authenticationKey = 'pt5zK3xIhhw9A/Ij31OskRNqs5pleZ30M4FwZcG59XEltRITbWPp0
 const schemaData = {
     firstName: String,
     lastName: String,
+    fullName: {
+        type: String,
+        encrypt: {
+            hash: true
+        }
+    },
     email: {
         type: String,
         encrypt: {
-            createBlindIndex: true
+            hash: {
+                index: true
+            }
         }
     },
     secretData: {
@@ -29,7 +37,7 @@ const schemaData = {
             address: {
                 type: String,
                 encrypt: {
-                    createBlindIndex: true
+                    hash: false
                 }
             }
         }
@@ -90,35 +98,106 @@ describe('mongoose-advanced-encryption plugin', function () {
 });
 
 describe('schema processing', function () {
-    it('should read field\'s encryption options on nested and embedded documents', function () {
+    it('should properly collect fields for encryption and construct their encryption options #1', function () {
         const UserSchema = new Schema(schemaData);
 
         UserSchema.plugin(advancedEncryption, {
             encryptionKey: encryptionKey,
             authenticationKey: authenticationKey,
             encrypt: {
-                createBlindIndex: false
+                hash: {
+                    index: false
+                }
             }
         });
 
         const exptectedFieldsToEncrypt = {
-            email: {createBlindIndex: true},
-            'secretData.creditCardNumber': {createBlindIndex: false},
-            'secretData.details.address': {createBlindIndex: true},
-            secretDataObject: {
-                createBlindIndex: false
-            }
+            email: {hash: {index: true}},
+            fullName: {hash: {index: false}},
+            'secretData.creditCardNumber': {hash: {index: false}},
+            'secretData.details.address': {hash: false},
+            secretDataObject: {hash: false}
         };
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
     });
 
-    it('should throw an error if createBlindIndex set to true for field type other than String', function () {
+    it('should properly collect fields for encryption and construct their encryption options #2', function () {
+        const UserSchema = new Schema(schemaData);
+
+        UserSchema.plugin(advancedEncryption, {
+            encryptionKey: encryptionKey,
+            authenticationKey: authenticationKey,
+            encrypt: {
+                hash: {
+                    index: true
+                }
+            }
+        });
+
+        const exptectedFieldsToEncrypt = {
+            email: {hash: {index: true}},
+            fullName: {hash: {index: true}},
+            'secretData.creditCardNumber': {hash: {index: true}},
+            'secretData.details.address': {hash: false},
+            secretDataObject: {hash: false}
+        };
+
+        expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
+    });
+
+    it('should properly collect fields for encryption and construct their encryption options #3', function () {
+        const UserSchema = new Schema(schemaData);
+
+        UserSchema.plugin(advancedEncryption, {
+            encryptionKey: encryptionKey,
+            authenticationKey: authenticationKey,
+            encrypt: {
+                hash: false
+            }
+        });
+
+        const exptectedFieldsToEncrypt = {
+            email: {hash: {index: true}},
+            fullName: {hash: {index: false}},
+            'secretData.creditCardNumber': {hash: false},
+            'secretData.details.address': {hash: false},
+            secretDataObject: {hash: false}
+        };
+
+        expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
+    });
+
+    it('should properly collect fields for encryption and construct their encryption options #4', function () {
+        const UserSchema = new Schema(schemaData);
+
+        UserSchema.plugin(advancedEncryption, {
+            encryptionKey: encryptionKey,
+            authenticationKey: authenticationKey,
+            encrypt: {
+                hash: true
+            }
+        });
+
+        const exptectedFieldsToEncrypt = {
+            email: {hash: {index: true}},
+            fullName: {hash: {index: false}},
+            'secretData.creditCardNumber': {hash: {index: false}},
+            'secretData.details.address': {hash: false},
+            secretDataObject: {hash: false}
+        };
+
+        expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
+    });
+
+    it('should throw an error if hash option set to true for field type other than String', function () {
         const UserSchema = new Schema({
             isAdmin: {
                 type: Boolean,
                 encrypt: {
-                    createBlindIndex: true
+                    hash: {
+                        index: true
+                    }
                 }
             }
         });
@@ -128,15 +207,15 @@ describe('schema processing', function () {
                 encryptionKey: encryptionKey,
                 authenticationKey: authenticationKey,
                 encrypt: {
-                    createBlindIndex: false
+                    hash: false
                 }
             });
         }
 
-        expect(attachPlugin).to.throw('encrypt.createBlindIndex option only works for String type fields');
+        expect(attachPlugin).to.throw('encrypt.hash option only works for String type fields');
     });
 
-    it('createBlindIndex option on schema/plugin level should not affect fields of non-String type', function () {
+    it('encrypt.hash option on schema/plugin level should not affect fields of non-String type', function () {
         const UserSchema = new Schema({
             isAdmin: {
                 type: Boolean,
@@ -148,12 +227,14 @@ describe('schema processing', function () {
             encryptionKey: encryptionKey,
             authenticationKey: authenticationKey,
             encrypt: {
-                createBlindIndex: true
+                hash: {
+                    index: true
+                }
             }
         });
 
         const expected = {
-            isAdmin: {createBlindIndex: false}
+            isAdmin: {hash: false}
         };
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(expected);
@@ -171,12 +252,12 @@ describe('schema processing', function () {
             encryptionKey: encryptionKey,
             authenticationKey: authenticationKey,
             encrypt: {
-                createBlindIndex: false
+                hash: false
             }
         });
 
         function alterSchemaEncryptionOptions () {
-            UserSchema.encryption.fieldsToEncrypt.email.createBlindIndex = true;
+            UserSchema.encryption.fieldsToEncrypt.email.hash = true;
         }
 
         expect(alterSchemaEncryptionOptions).to.throw(TypeError);
@@ -189,7 +270,7 @@ describe('schema processing', function () {
             encryptionKey: encryptionKey,
             authenticationKey: authenticationKey,
             encrypt: {
-                createBlindIndex: true
+                hash: true
             }
         });
 
@@ -200,11 +281,12 @@ describe('schema processing', function () {
             expect(UserSchema.path('secretData.details.address_c').instance).to.equal('Buffer');
         });
 
-        it('should add blind index fields for each field to be encrypted and option createBlindIndex set to true', function () {
-            expect(UserSchema.path('email_i').instance).to.equal('String');
-            expect(UserSchema.path('secretDataObject_i')).to.be.an('undefined');
-            expect(UserSchema.path('secretData.creditCardNumber_i').instance).to.equal('String');
-            expect(UserSchema.path('secretData.details.address_i').instance).to.equal('String');
+        it('should add hash fields for each field to be encrypted and option hash set to true', function () {
+            expect(UserSchema.path('email_h').instance).to.equal('String');
+            expect(UserSchema.path('fullName_h').instance).to.equal('String');
+            expect(UserSchema.path('secretDataObject_h')).to.be.an('undefined');
+            expect(UserSchema.path('secretData.creditCardNumber_h').instance).to.equal('String');
+            expect(UserSchema.path('secretData.details.address_h')).to.be.an('undefined');
         });
     });
 });
@@ -216,7 +298,9 @@ describe('encrypting/decrypting', function () {
         encryptionKey: encryptionKey,
         authenticationKey: authenticationKey,
         encrypt: {
-            createBlindIndex: false
+            hash: {
+                index: false
+            }
         }
     });
 
@@ -267,26 +351,40 @@ describe('encrypting/decrypting', function () {
             expect(decrypted.secretData.creditCardNumber).to.be.a('string');
             expect(decrypted.secretData.details.address).to.be.a('string');
         });
+
+        it('should not encrypt paths with undefined value', async function () {
+            const user = new User({
+                firstName: 'John',
+                lastName: 'Doe'
+            });
+
+            const encrypted = await user.encrypt();
+
+            expect(encrypted.email_c).to.be.an('undefined');
+            expect(encrypted.secretDataObject_c).to.be.an('undefined');
+            expect(encrypted.secretData.creditCardNumber_c).to.be.an('undefined');
+            expect(encrypted.secretData.details.address_c).to.be.an('undefined');
+        });
     });
 
     describe('document.save()', function () {
-        it('it should save encrypted data to database', async function () {
-            const user = new User({
-                firstName: 'John',
-                lastName: 'Doe',
-                email: 'johndoesaved@gmail.com',
-                secretData: {
-                    creditCardNumber: '12334566789',
-                    details: {
-                        address: 'My address'
-                    }
-                },
-                secretDataObject: {
-                    ssn: '2254879844',
-                    creditCardNumber: '6545646545645'
+        const user = new User({
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'johndoesaved@gmail.com',
+            secretData: {
+                creditCardNumber: '12334566789',
+                details: {
+                    address: 'My address'
                 }
-            });
+            },
+            secretDataObject: {
+                ssn: '2254879844',
+                creditCardNumber: '6545646545645'
+            }
+        });
 
+        it('it should save encrypted data to database', async function () {
             const mongooseDocument = await user.save();
 
             expect(mongooseDocument.email).to.be.an('undefined');
@@ -312,7 +410,20 @@ describe('encrypting/decrypting', function () {
             expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
         });
 
-        describe('with pluginOptions.decryptAfterSave set to true', function () {
+        it('should create MongoDB index for fields with encrypt.hash.index === true', async function () {
+            await user.save();
+            await User.ensureIndexes();
+            const indexes = await User.collection.getIndexes();
+
+            const expected = {
+                _id_: [[ '_id', 1 ]],
+                email_h_1: [[ 'email_h', 1 ]]
+            };
+
+            expect(indexes).to.deep.equal(expected);
+        });
+
+        it('should decrypt after save when pluginOptions.decryptAfterSave === true', async function () {
             const UserSchemaDecryptAfterSave = new Schema(schemaData);
 
             UserSchemaDecryptAfterSave.plugin(advancedEncryption, {
@@ -323,52 +434,48 @@ describe('encrypting/decrypting', function () {
 
             const UserDecryptAfterSave = mongoose.model('UserDecryptAfterSave', UserSchemaDecryptAfterSave);
 
-            afterEach(async function () {
-                await UserDecryptAfterSave.remove()
-            });
-
-            it('should decrypt after save', async function () {
-                const user = new UserDecryptAfterSave({
-                    firstName: 'John',
-                    lastName: 'Doe',
-                    email: 'johndoesaved@gmail.com',
-                    secretData: {
-                        creditCardNumber: '12334566789',
-                        details: {
-                            address: 'My address'
-                        }
-                    },
-                    secretDataObject: {
-                        ssn: '2254879844',
-                        creditCardNumber: '6545646545645'
+            const user = new UserDecryptAfterSave({
+                firstName: 'John',
+                lastName: 'Doe',
+                email: 'johndoesaved@gmail.com',
+                secretData: {
+                    creditCardNumber: '12334566789',
+                    details: {
+                        address: 'My address'
                     }
-                });
-
-                const mongooseDocument = await user.save();
-
-                expect(mongooseDocument.email_c).to.be.an('undefined');
-                expect(mongooseDocument.secretDataObject_c).to.be.an('undefined');
-                expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an('undefined');
-                expect(mongooseDocument.secretData.details.address_c).to.be.an('undefined');
-
-                expect(mongooseDocument.email).to.be.a('string');
-                expect(mongooseDocument).to.have.property('secretDataObject');
-                expect(mongooseDocument).to.have.property('secretData');
-                expect(mongooseDocument.secretData.creditCardNumber).to.be.a('string');
-                expect(mongooseDocument.secretData.details.address).to.be.a('string');
-
-                const rawRecord = await UserDecryptAfterSave.collection.findOne({_id: mongooseDocument._id});
-
-                expect(rawRecord.email).to.be.an('undefined');
-                expect(rawRecord.secretDataObject).to.be.an('undefined');
-                expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
-                expect(rawRecord.secretData.address).to.be.an('undefined');
-
-                expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+                },
+                secretDataObject: {
+                    ssn: '2254879844',
+                    creditCardNumber: '6545646545645'
+                }
             });
+
+            const mongooseDocument = await user.save();
+
+            expect(mongooseDocument.email_c).to.be.an('undefined');
+            expect(mongooseDocument.secretDataObject_c).to.be.an('undefined');
+            expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an('undefined');
+            expect(mongooseDocument.secretData.details.address_c).to.be.an('undefined');
+
+            expect(mongooseDocument.email).to.be.a('string');
+            expect(mongooseDocument).to.have.property('secretDataObject');
+            expect(mongooseDocument).to.have.property('secretData');
+            expect(mongooseDocument.secretData.creditCardNumber).to.be.a('string');
+            expect(mongooseDocument.secretData.details.address).to.be.a('string');
+
+            const rawRecord = await UserDecryptAfterSave.collection.findOne({_id: mongooseDocument._id});
+
+            expect(rawRecord.email).to.be.an('undefined');
+            expect(rawRecord.secretDataObject).to.be.an('undefined');
+            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
+            expect(rawRecord.secretData.address).to.be.an('undefined');
+
+            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+
+            await UserDecryptAfterSave.collection.drop();
         });
     });
 
@@ -382,5 +489,6 @@ describe('encrypting/decrypting', function () {
 
     afterEach(async function () {
         await User.remove({});
+        await User.collection.dropIndexes();
     });
 });
