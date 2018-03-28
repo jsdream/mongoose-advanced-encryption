@@ -4,6 +4,17 @@ Mongoose plugin for document fields encryption and authentication preserving abi
 
 ## Overview
 
+This plugin provides encryption, hashing (blind indexing) and authentication for Mongoose document fields.
+Fields encryption is performed using `AES-256-CBC` algorithm, hashing as well as authentication using `HMAC-SHA-512`.
+
+## Defining field encryption settings
+The plugin works on per-field encryption basis. To mark field to be encrypted it is necessary to specify it's encryption
+options using `encrypt` option on it's SchemaType definition. The `encrypt` option can be either a `boolean` 
+(e.g. `true` will enable encryption of the field, `false` is the same as not setting the option at all) or an `Object`
+with field's encryption settings, which would override defaults. It is possible to specify default `encrypt` options
+on schema level as `encrypt` field on plugin options. 
+If it's not specified plugin's [hard-coded config](#default-plugin-configuration-is-the-following) will be used.
+
 ## Getting Started
 
 `npm install mongoose-advanced-encryption --save`
@@ -19,9 +30,9 @@ Mongoose plugin for document fields encryption and authentication preserving abi
     - `hash` - Indicates either hash should be created or not.
         - `index` - Indicates either index for the hash field should be created of not.
 
-Default plugin configuration is the following:
+###### Default plugin configuration is the following:
 ```js
-{
+const defaultConfig = {
     decryptAfterSave: false,
     encrypt: {
         hash: { // means that hash will be created, but without MongoDB index
