@@ -72,7 +72,7 @@ after(async () => {
     await mongoose.disconnect();
 });
 
-describe('mongoose-advanced-encryption plugin', function () {
+describe('[mongoose-advanced-encryption plugin]', function () {
     it('should throw an error if encryption key is not specified', function () {
         const UserSchemaWithoutEncryptionKey = new Schema({
             firstName: String
@@ -132,7 +132,7 @@ describe('mongoose-advanced-encryption plugin', function () {
     });
 });
 
-describe('schema processing', function () {
+describe('[schema processing]', function () {
     it('should properly collect fields for encryption and construct their encryption options #1', function () {
         const UserSchema = new Schema(schemaData);
 
@@ -317,7 +317,7 @@ describe('schema processing', function () {
         expect(alterSchemaEncryptionOptions).to.throw(TypeError);
     });
     
-    describe('schema augmentation', function () {
+    describe('* schema augmentation', function () {
         const UserSchema = new Schema(schemaData);
 
         UserSchema.plugin(advancedEncryption, {
@@ -346,7 +346,7 @@ describe('schema processing', function () {
     });
 });
 
-describe('encrypting/decrypting', function () {
+describe('[encrypting/decrypting]', function () {
     const UserSchema = new Schema(schemaData);
 
     UserSchema.plugin(advancedEncryption, {
@@ -362,7 +362,7 @@ describe('encrypting/decrypting', function () {
 
     const User = mongoose.model('User', UserSchema);
 
-    describe('document', function () {
+    describe('* document', function () {
         const user = new User({
             firstName: 'John',
             lastName: 'Doe',
@@ -442,7 +442,7 @@ describe('encrypting/decrypting', function () {
         });
     });
 
-    describe('document.save()', function () {
+    describe('* document.save()', function () {
         it('it should save encrypted data to database', async function () {
             const user = new User(userData);
             const mongooseDocument = await user.save();
@@ -548,7 +548,7 @@ describe('encrypting/decrypting', function () {
             expect(user.email_h).to.be.an('undefined');
         });
 
-        describe('when pluginOptions.decryptAfterSave === true', function () {
+        it('should decrypt after save when pluginOptions.decryptAfterSave === true', async function () {
             const UserSchemaDecryptAfterSave = new Schema(schemaData);
 
             UserSchemaDecryptAfterSave.plugin(advancedEncryption, {
@@ -560,37 +560,64 @@ describe('encrypting/decrypting', function () {
 
             const UserDecryptAfterSave = mongoose.model('UserDecryptAfterSave', UserSchemaDecryptAfterSave);
 
-            it('should decrypt after save', async function () {
-                const user = new UserDecryptAfterSave(userData);
+            const user = new UserDecryptAfterSave(userData);
 
-                const mongooseDocument = await user.save();
+            const mongooseDocument = await user.save();
 
-                expect(mongooseDocument.email_c).to.be.an.instanceof(Buffer);
-                expect(mongooseDocument.fullName_c).to.be.an('undefined');
-                expect(mongooseDocument.secretDataObject_c).to.be.an.instanceof(Buffer);
-                expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
-                expect(mongooseDocument.secretData.details.address_c).to.be.an.instanceof(Buffer);
+            expect(mongooseDocument.email_c).to.be.an.instanceof(Buffer);
+            expect(mongooseDocument.fullName_c).to.be.an('undefined');
+            expect(mongooseDocument.secretDataObject_c).to.be.an.instanceof(Buffer);
+            expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
+            expect(mongooseDocument.secretData.details.address_c).to.be.an.instanceof(Buffer);
 
-                expect(mongooseDocument.email).to.be.a('string');
-                expect(mongooseDocument).to.have.property('secretDataObject');
-                expect(mongooseDocument).to.have.property('secretData');
-                expect(mongooseDocument.secretData.creditCardNumber).to.be.a('string');
-                expect(mongooseDocument.secretData.details.address).to.be.a('string');
+            expect(mongooseDocument.email).to.be.a('string');
+            expect(mongooseDocument).to.have.property('secretDataObject');
+            expect(mongooseDocument).to.have.property('secretData');
+            expect(mongooseDocument.secretData.creditCardNumber).to.be.a('string');
+            expect(mongooseDocument.secretData.details.address).to.be.a('string');
 
-                const rawRecord = await UserDecryptAfterSave.collection.findOne({_id: mongooseDocument._id});
+            const rawRecord = await UserDecryptAfterSave.collection.findOne({_id: mongooseDocument._id});
 
-                expect(rawRecord.email).to.be.an('undefined');
-                expect(rawRecord.secretDataObject).to.be.an('undefined');
-                expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
-                expect(rawRecord.secretData.address).to.be.an('undefined');
+            expect(rawRecord.email).to.be.an('undefined');
+            expect(rawRecord.secretDataObject).to.be.an('undefined');
+            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
+            expect(rawRecord.secretData.address).to.be.an('undefined');
 
-                expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
-                expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
 
-                await UserDecryptAfterSave.collection.drop();
-            });
+            await UserDecryptAfterSave.collection.drop();
+        });
+    });
+
+    describe('Model.update()', function () {
+        it('it should encrypt data being updated before saving to database', async function () {
+            const mongooseDocument = new User({email: 'emptyuser@gmail.com'});
+            await mongooseDocument.save();
+
+            const result = await User.update({email: 'emptyuser@gmail.com'}, userData).exec();
+            expect(result).to.eql({n: 1, nModified: 1, ok: 1});
+
+            const rawRecord = await User.collection.findOne({_id: mongooseDocument._id});
+
+            expect(rawRecord.email).to.be.an('undefined');
+            expect(rawRecord.secretDataObject).to.be.an('undefined');
+            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
+            expect(rawRecord.secretData.address).to.be.an('undefined');
+
+            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.fullName_c).to.be.an('undefined');
+            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+
+            expect(rawRecord.email_h).to.be.a('string');
+            expect(rawRecord.fullName_h).to.be.an('undefined');
+            expect(rawRecord.secretDataObject_h).to.be.an('undefined');
+            expect(rawRecord.secretData.creditCardNumber_h).to.be.a('string');
+            expect(rawRecord.secretData.details.address_h).to.be.an('undefined');
         });
     });
 
@@ -604,7 +631,7 @@ describe('encrypting/decrypting', function () {
     });
 });
 
-describe('Querying encrypted documents', function () {
+describe('[Querying encrypted documents]', function () {
     const UserSchema = new Schema(schemaData);
 
     UserSchema.plugin(advancedEncryption, {
@@ -620,7 +647,7 @@ describe('Querying encrypted documents', function () {
 
     const User = mongoose.model('UserQuery', UserSchema);
 
-    describe('should be able to query by full-match against encrypted fields which utilizing blind index', function () {
+    describe('* should be able to query by full-match against encrypted fields which utilizing blind index', function () {
         beforeEach(async function () {
             const user = new User(userData);
             await user.save();
@@ -747,12 +774,17 @@ describe('Querying encrypted documents', function () {
             });
         });
 
-        describe.only('Model.findOneAndUpdate()', function () {
-            const update = {email: 'updatedemail@gmail.com'};
+        describe('Model.findOneAndUpdate()', function () {
+            const update = {
+                email: 'updatedemail@gmail.com',
+                'secretData.details.address': '123'
+            };
+
+            const find = {email: 'updatedemail@gmail.com'};
 
             it('query #1', async function () {
                 const find1 = await User.findOneAndUpdate(query1, update).exec();
-                const find2 = await User.findOne(query1).exec();
+                const find2 = await User.findOne(find).exec();
 
                 expect(find1.firstName).to.be.a('string');
                 expect(find1.email).to.be.an('undefined');
@@ -761,40 +793,12 @@ describe('Querying encrypted documents', function () {
                 expect(find2.email_h).to.not.be.an('undefined');
                 expect(find1.email_c).to.not.deep.equal(find2.email_c);
                 expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
-            });
-
-            it('query #2', async function () {
-                const find1 = await User.findOneAndUpdate(query2, update).exec();
-                const find2 = await User.findOne(query2).exec();
-
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
-            });
-
-            it('query #3', async function () {
-                const find1 = await User.findOneAndUpdate(query3, update).exec();
-                const find2 = await User.findOne(query3).exec();
-
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
+                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
             });
 
             it('query #4', async function () {
                 const find1 = await User.findOneAndUpdate(query4, update).exec();
-                const find2 = await User.findOne(query4).exec();
+                const find2 = await User.findOne(find).exec();
 
                 expect(find1.firstName).to.be.a('string');
                 expect(find1.email).to.be.an('undefined');
@@ -803,12 +807,12 @@ describe('Querying encrypted documents', function () {
                 expect(find2.email_h).to.not.be.an('undefined');
                 expect(find1.email_c).to.not.deep.equal(find2.email_c);
                 expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
+                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
             });
 
             it('query #5', async function () {
                 const find1 = await User.findOneAndUpdate(query5, update).exec();
-                const find2 = await User.findOne(query5).exec();
+                const find2 = await User.findOne(find).exec();
 
                 expect(find1.firstName).to.be.a('string');
                 expect(find1.email).to.be.an('undefined');
@@ -817,12 +821,12 @@ describe('Querying encrypted documents', function () {
                 expect(find2.email_h).to.not.be.an('undefined');
                 expect(find1.email_c).to.not.deep.equal(find2.email_c);
                 expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
+                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
             });
 
             it('query #6', async function () {
                 const find1 = await User.findOneAndUpdate(query6, update).exec();
-                const find2 = await User.findOne(query6).exec();
+                const find2 = await User.findOne(find).exec();
 
                 expect(find1.firstName).to.be.a('string');
                 expect(find1.email).to.be.an('undefined');
@@ -831,7 +835,7 @@ describe('Querying encrypted documents', function () {
                 expect(find2.email_h).to.not.be.an('undefined');
                 expect(find1.email_c).to.not.deep.equal(find2.email_c);
                 expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.creditCardNumber_c).to.deep.equal(find2.secretData.creditCardNumber_c);
+                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
             });
         });
     });
