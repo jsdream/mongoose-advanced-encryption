@@ -41,8 +41,7 @@ async function separate () {
     for (let i = 0; i < ITERATIONS; i++) {
         const encryptedObject = {};
         for (let key in testedObject) {
-            const res = await crypto.encrypt(testedObject[key], null, KEY);
-            encryptedObject[key] = res.cipher;
+            encryptedObject[key] = await crypto.encrypt(testedObject[key], KEY);
         }
         encrypted.push(encryptedObject);
     }
@@ -51,7 +50,7 @@ async function separate () {
     console.time('decrypt separate');
     for (let i = 0; i < ITERATIONS; i++) {
         for (let key in testedObject) {
-            await crypto.decrypt(encrypted[i][key], null, KEY);
+            await crypto.decrypt(encrypted[i][key], KEY);
         }
     }
     console.timeEnd('decrypt separate');
@@ -61,14 +60,14 @@ async function aggregated () {
     const encrypted = [];
     console.time('encrypt aggregated');
     for (let i = 0; i < ITERATIONS; i++) {
-        const res = await crypto.encrypt(testedObject, null, KEY);
-        encrypted.push(res.cipher);
+        const cipher = await crypto.encrypt(testedObject, KEY);
+        encrypted.push(cipher);
     }
     console.timeEnd('encrypt aggregated');
 
     console.time('decrypt aggregated');
     for (let i = 0; i < ITERATIONS; i++) {
-        await crypto.decrypt(encrypted[i], null, KEY);
+        await crypto.decrypt(encrypted[i], KEY);
     }
     console.timeEnd('decrypt aggregated');
 }
