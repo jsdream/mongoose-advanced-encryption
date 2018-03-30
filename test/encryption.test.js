@@ -329,19 +329,17 @@ describe('[schema processing]', function () {
             }
         });
 
-        it('should add cipher fields for each field to be encrypted', function () {
-            expect(UserSchema.path('email_c').instance).to.equal('Buffer');
-            expect(UserSchema.path('secretDataObject_c').instance).to.equal('Buffer');
-            expect(UserSchema.path('secretData.creditCardNumber_c').instance).to.equal('Buffer');
-            expect(UserSchema.path('secretData.details.address_c').instance).to.equal('Buffer');
+        it('should add cipher and signature fields to schema', function () {
+            expect(UserSchema.path('__enc').instance).to.equal('Buffer');
+            expect(UserSchema.path('__sig').instance).to.equal('Buffer');
         });
 
         it('should add hash fields for each field to be encrypted and option hash set to true', function () {
-            expect(UserSchema.path('email_h').instance).to.equal('String');
-            expect(UserSchema.path('fullName_h').instance).to.equal('String');
-            expect(UserSchema.path('secretDataObject_h')).to.be.an('undefined');
-            expect(UserSchema.path('secretData.creditCardNumber_h').instance).to.equal('String');
-            expect(UserSchema.path('secretData.details.address_h')).to.be.an('undefined');
+            expect(UserSchema.path('__hash.email').instance).to.equal('String');
+            expect(UserSchema.path('__hash.fullName').instance).to.equal('String');
+            expect(UserSchema.path('__hash.secretDataObject')).to.be.an('undefined');
+            expect(UserSchema.path('__hash.secretData.creditCardNumber').instance).to.equal('String');
+            expect(UserSchema.path('__hash.secretData.details.address')).to.be.an('undefined');
         });
     });
 });
@@ -363,23 +361,8 @@ describe('[encrypting/decrypting]', function () {
     const User = mongoose.model('User', UserSchema);
 
     describe('* document', function () {
-        const user = new User({
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'johndoe@gmail.com',
-            secretData: {
-                creditCardNumber: '12334566789',
-                details: {
-                    address: 'My address'
-                }
-            },
-            secretDataObject: {
-                ssn: '2254879844',
-                creditCardNumber: '6545646545645'
-            }
-        });
-
         it('should properly encrypt document fields when calling document.encrypt()', async function () {
+            const user = new User(userData);
             const encrypted = await user.encrypt();
 
             // Ensure plaintext values are removed after encryption
@@ -388,36 +371,29 @@ describe('[encrypting/decrypting]', function () {
             expect(encrypted.secretData.creditCardNumber).to.be.an('undefined');
             expect(encrypted.secretData.details.address).to.be.an('undefined');
 
-            // Ensure cipher text values have been added
-            expect(encrypted.email_c).to.be.an.instanceof(Buffer);
-            expect(encrypted.secretDataObject_c).to.be.an.instanceof(Buffer);
-            expect(encrypted.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
-            expect(encrypted.secretData.details.address_c).to.be.an.instanceof(Buffer);
+            // Ensure cipher text and signature values have been added
+            expect(encrypted.__enc).to.be.an.instanceof(Buffer);
+            // expect(encrypted.__sig).to.be.an.instanceof(Buffer);
 
             // Ensure hash values have been added
-            expect(encrypted.email_h).to.have.lengthOf(88);
-            expect(encrypted.fullName_h).to.be.an('undefined');
-            expect(encrypted.secretDataObject_h).to.be.an('undefined');
-            expect(encrypted.secretData.creditCardNumber_h).to.have.lengthOf(88);
-            expect(encrypted.secretData.details.address_h).to.be.an('undefined');
+            expect(encrypted.__hash).to.not.be.an('undefined');
+            expect(encrypted.__hash.email).to.have.lengthOf(88);
+            expect(encrypted.__hash.fullName).to.be.an('undefined');
+            expect(encrypted.__hash.secretDataObject).to.be.an('undefined');
+            expect(encrypted.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
+            expect(encrypted.__hash.secretData.details).to.be.an('undefined');
         });
 
         it('should properly decrypt document fields when calling document.decrypt()', async function () {
-            const decrypted = await user.decrypt();
+            const user = new User(userData);
+            const encrypted = await user.encrypt();
+            const decrypted = await encrypted.decrypt();
 
-            // Ensure encrypted values remain after decryption,
-            // thus we can re-encrypt values only if they have been modified
-            expect(decrypted.email_c).to.be.an.instanceof(Buffer);
-            expect(decrypted.secretDataObject_c).to.be.an.instanceof(Buffer);
-            expect(decrypted.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
-            expect(decrypted.secretData.details.address_c).to.be.an.instanceof(Buffer);
+            expect(decrypted.__enc).to.be.an.instanceof(Buffer);
+            // expect(decrypted.__sig).to.be.an.instanceof(Buffer);
 
-            // The same goes for hashes
-            expect(decrypted.email_h).to.have.lengthOf(88);
-            expect(decrypted.fullName_h).to.be.an('undefined');
-            expect(decrypted.secretDataObject_h).to.be.an('undefined');
-            expect(decrypted.secretData.creditCardNumber_h).to.have.lengthOf(88);
-            expect(decrypted.secretData.details.address_h).to.be.an('undefined');
+            expect(decrypted.__hash.email).to.have.lengthOf(88);
+            expect(decrypted.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
 
             // Ensure values exist as plaintext after decryption
             expect(decrypted.email).to.be.a('string');
@@ -427,7 +403,8 @@ describe('[encrypting/decrypting]', function () {
             expect(decrypted.secretData.details.address).to.be.a('string');
         });
 
-        it('should not encrypt paths with undefined value', async function () {
+        // TODO Get back to this
+        it.skip('should not encrypt paths with undefined value', async function () {
             const user = new User({
                 firstName: 'John',
                 lastName: 'Doe'
@@ -452,36 +429,29 @@ describe('[encrypting/decrypting]', function () {
             expect(mongooseDocument.secretData.creditCardNumber).to.be.an('undefined');
             expect(mongooseDocument.secretData.address).to.be.an('undefined');
 
-            expect(mongooseDocument.email_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.fullName_c).to.be.an('undefined');
-            expect(mongooseDocument.secretDataObject_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.secretData.details.address_c).to.be.an.instanceof(Buffer);
+            expect(mongooseDocument.__enc).to.be.an.instanceof(Buffer);
+            // expect(mongooseDocument.__sig).to.be.an.instanceof(Buffer);
 
-            expect(mongooseDocument.email_h).to.be.a('string');
-            expect(mongooseDocument.fullName_h).to.be.an('undefined');
-            expect(mongooseDocument.secretDataObject_h).to.be.an('undefined');
-            expect(mongooseDocument.secretData.creditCardNumber_h).to.be.a('string');
-            expect(mongooseDocument.secretData.details.address_h).to.be.an('undefined');
+            expect(mongooseDocument.__hash.email).to.be.a('string');
+            expect(mongooseDocument.__hash.fullName).to.be.an('undefined');
+            expect(mongooseDocument.__hash.secretDataObject).to.be.an('undefined');
+            expect(mongooseDocument.__hash.secretData.creditCardNumber).to.be.a('string');
+            expect(mongooseDocument.__hash.secretData.details).to.be.an('undefined');
 
             const rawRecord = await User.collection.findOne({_id: mongooseDocument._id});
 
             expect(rawRecord.email).to.be.an('undefined');
             expect(rawRecord.secretDataObject).to.be.an('undefined');
-            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
-            expect(rawRecord.secretData.address).to.be.an('undefined');
+            expect(rawRecord.secretData).to.be.an('undefined');
 
-            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.fullName_c).to.be.an('undefined');
-            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.__enc.buffer).to.be.an.instanceof(Buffer);
+            // expect(rawRecord.__sig.buffer).to.be.an.instanceof(Buffer);
 
-            expect(rawRecord.email_h).to.be.a('string');
-            expect(rawRecord.fullName_h).to.be.an('undefined');
-            expect(rawRecord.secretDataObject_h).to.be.an('undefined');
-            expect(rawRecord.secretData.creditCardNumber_h).to.be.a('string');
-            expect(rawRecord.secretData.details.address_h).to.be.an('undefined');
+            expect(rawRecord.__hash.email).to.be.a('string');
+            expect(rawRecord.__hash.fullName).to.be.an('undefined');
+            expect(rawRecord.__hash.secretDataObject).to.be.an('undefined');
+            expect(rawRecord.__hash.secretData.creditCardNumber).to.be.a('string');
+            expect(rawRecord.__hash.secretData.details).to.be.an('undefined');
         });
 
         it('should create MongoDB index for fields with encrypt.hash.index === true', async function () {
@@ -492,7 +462,7 @@ describe('[encrypting/decrypting]', function () {
 
             const expected = {
                 _id_: [[ '_id', 1 ]],
-                email_h_1: [[ 'email_h', 1 ]]
+                '__hash.email_1': [[ '__hash.email', 1 ]]
             };
 
             expect(indexes).to.deep.equal(expected);
@@ -505,47 +475,67 @@ describe('[encrypting/decrypting]', function () {
             await user1.save();
             await user2.save();
 
-            expect(user1.email_c).to.not.equal(user2.email_c);
+            expect(user1.__enc).to.not.equal(user2.__enc);
         });
 
-        it('should re-encrypt field only if it has changed', async function () {
+        it('should re-encrypt fields only if at least one of encrypted fields has changed', async function () {
             const user = new User(userData);
 
             await user.save();
 
-            const encryptedValue = user.email_c;
+            const encryptedValue = user.__enc;
             await user.decrypt();
 
             user.firstName = 'Jonathan';
 
             await user.save();
-            const encryptedValue2 = user.email_c;
+            const encryptedValue2 = user.__enc;
             await user.decrypt();
 
             user.email = 'newemail@gmail.com';
 
             await user.save();
-            const encryptedValue3 = user.email_c;
+            const encryptedValue3 = user.__enc;
             await user.decrypt();
 
             expect(encryptedValue).to.equal(encryptedValue2);
-            expect(encryptedValue2).to.not.equal(encryptedValue3);
+            expect(encryptedValue).to.not.equal(encryptedValue3);
         });
 
-        it('should remove cipher text and hash if it\'s plaintext field value was set to undefined', async function () {
+        it('should remove encrypted value if it\'s plaintext field value was set to undefined', async function () {
             const user = new User(userData);
             await user.save();
+            await user.decrypt();
 
-            expect(user.email_c).to.be.an.instanceof(Buffer);
-            expect(user.email_h).to.have.lengthOf(88);
+            expect(user.__enc).to.be.an.instanceof(Buffer);
+            expect(user.__hash.email).to.have.lengthOf(88);
 
             user.email = undefined;
 
             await user.save();
 
-            expect(user.email).to.be.an('undefined');
-            expect(user.email_c).to.be.an('undefined');
-            expect(user.email_h).to.be.an('undefined');
+            const user2 = await User.findOne({_id: user._id}).exec();
+
+            expect(user2.email).to.be.an('undefined');
+        });
+
+        it('should remove hash if it\'s plaintext field value was set to undefined', async function () {
+            const user = new User(userData);
+            await user.save();
+            await user.decrypt();
+
+            expect(user.__enc).to.be.an.instanceof(Buffer);
+            expect(user.__hash.email).to.have.lengthOf(88);
+
+            user.email = undefined;
+
+            await user.save();
+
+            expect(user.__hash.email).to.be.an('undefined');
+
+            const decrypted = await User.findOne({_id: user._id}).exec();
+
+            expect(decrypted.__hash.email).to.be.an('undefined');
         });
 
         it('should decrypt after save when pluginOptions.decryptAfterSave === true', async function () {
@@ -564,12 +554,6 @@ describe('[encrypting/decrypting]', function () {
 
             const mongooseDocument = await user.save();
 
-            expect(mongooseDocument.email_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.fullName_c).to.be.an('undefined');
-            expect(mongooseDocument.secretDataObject_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.secretData.creditCardNumber_c).to.be.an.instanceof(Buffer);
-            expect(mongooseDocument.secretData.details.address_c).to.be.an.instanceof(Buffer);
-
             expect(mongooseDocument.email).to.be.a('string');
             expect(mongooseDocument).to.have.property('secretDataObject');
             expect(mongooseDocument).to.have.property('secretData');
@@ -580,49 +564,108 @@ describe('[encrypting/decrypting]', function () {
 
             expect(rawRecord.email).to.be.an('undefined');
             expect(rawRecord.secretDataObject).to.be.an('undefined');
-            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
-            expect(rawRecord.secretData.address).to.be.an('undefined');
+            expect(rawRecord.secretData).to.be.an('undefined');
 
-            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.__enc.buffer).to.be.an.instanceof(Buffer);
+            // expect(rawRecord.__sig.buffer).to.be.an.instanceof(Buffer);
+
+            expect(rawRecord.__hash.email).to.be.a('string');
+            expect(rawRecord.__hash.secretData.creditCardNumber).to.be.a('string');
 
             await UserDecryptAfterSave.collection.drop();
         });
     });
 
-    describe('Model.update()', function () {
-        it('it should encrypt data being updated before saving to database', async function () {
+    describe('* Model.update()', function () {
+        it('should throw an error when attempting to update encrypted fields', async function () {
             const mongooseDocument = new User({email: 'emptyuser@gmail.com'});
             await mongooseDocument.save();
 
-            const result = await User.update({email: 'emptyuser@gmail.com'}, userData).exec();
+            let error;
+
+            try {
+                await User.update({email: 'emptyuser@gmail.com'}, userData).exec();
+            }
+            catch (err) {
+                error = err;
+            }
+
+            expect(error).to.be.an('error');
+            expect(error.message).to.equal('Can not perform partial update of encrypted fields');
+        });
+
+        it('it should throw an error when attempting to update encrypted fields #2', async function () {
+            const mongooseDocument = new User({email: 'emptyuser@gmail.com'});
+            await mongooseDocument.save();
+
+            let error;
+
+            try {
+                await User.update({email: 'emptyuser@gmail.com'}, {$set: {email: 'updated@gmail.com'}}).exec();
+            }
+            catch (err) {
+                error = err;
+            }
+
+            expect(error).to.be.an('error');
+            expect(error.message).to.equal('Can not perform partial update of encrypted fields');
+        });
+
+        it('it should perform an update when there are no encrypted fields in update', async function () {
+            const mongooseDocument = new User({email: 'emptyuser@gmail.com'});
+            await mongooseDocument.save();
+
+            let error;
+            let result;
+
+            try {
+                result = await User.update({email: 'emptyuser@gmail.com'}, {firstName: 'John'}).exec();
+            }
+            catch (err) {
+                error = err;
+            }
+
             expect(result).to.eql({n: 1, nModified: 1, ok: 1});
+            expect(error).to.be.an('undefined');
+        });
+    });
+
+    describe('* Model.create()', function () {
+        it('it should save encrypted data to database', async function () {
+            const mongooseDocument = await User.create(userData);
+
+            expect(mongooseDocument.email).to.be.an('undefined');
+            expect(mongooseDocument.secretDataObject).to.be.an('undefined');
+            expect(mongooseDocument.secretData.creditCardNumber).to.be.an('undefined');
+            expect(mongooseDocument.secretData.address).to.be.an('undefined');
+
+            expect(mongooseDocument.__enc).to.be.an.instanceof(Buffer);
+            // expect(mongooseDocument.__sig).to.be.an.instanceof(Buffer);
+
+            expect(mongooseDocument.__hash.email).to.be.a('string');
+            expect(mongooseDocument.__hash.fullName).to.be.an('undefined');
+            expect(mongooseDocument.__hash.secretDataObject).to.be.an('undefined');
+            expect(mongooseDocument.__hash.secretData.creditCardNumber).to.be.a('string');
+            expect(mongooseDocument.__hash.secretData.details).to.be.an('undefined');
 
             const rawRecord = await User.collection.findOne({_id: mongooseDocument._id});
 
             expect(rawRecord.email).to.be.an('undefined');
             expect(rawRecord.secretDataObject).to.be.an('undefined');
-            expect(rawRecord.secretData.creditCardNumber).to.be.an('undefined');
-            expect(rawRecord.secretData.address).to.be.an('undefined');
+            expect(rawRecord.secretData).to.be.an('undefined');
 
-            expect(rawRecord.email_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.fullName_c).to.be.an('undefined');
-            expect(rawRecord.secretDataObject_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.creditCardNumber_c.buffer).to.be.an.instanceof(Buffer);
-            expect(rawRecord.secretData.details.address_c.buffer).to.be.an.instanceof(Buffer);
+            expect(rawRecord.__enc.buffer).to.be.an.instanceof(Buffer);
+            // expect(rawRecord.__sig).to.be.an.instanceof(Buffer);
 
-            expect(rawRecord.email_h).to.be.a('string');
-            expect(rawRecord.fullName_h).to.be.an('undefined');
-            expect(rawRecord.secretDataObject_h).to.be.an('undefined');
-            expect(rawRecord.secretData.creditCardNumber_h).to.be.a('string');
-            expect(rawRecord.secretData.details.address_h).to.be.an('undefined');
+            expect(rawRecord.__hash.email).to.be.a('string');
+            expect(rawRecord.__hash.secretData.creditCardNumber).to.be.a('string');
         });
     });
 
-    describe('Model.create()', function () {
-
+    describe('Model.insertMany()', function () {
+        it.skip('it should throw an error if used on model with fields marked for encryption', async function () {
+            const mongooseDocument = await User.insertMany(userData);
+        });
     });
 
     afterEach(async function () {
@@ -682,64 +725,105 @@ describe('[Querying encrypted documents]', function () {
             ]
         };
 
-        it('Model.find()', async function () {
-            const result1 = await User.find(query1).exec();
-            expect(result1).to.have.lengthOf(1);
+        describe('Model.find()', function () {
+            it('query #1-6', async function () {
+                const result1 = await User.find(query1).exec();
+                expect(result1).to.have.lengthOf(1);
 
-            const result2 = await User.find(query2).exec();
-            expect(result2).to.have.lengthOf(1);
+                const result2 = await User.find(query2).exec();
+                expect(result2).to.have.lengthOf(1);
 
-            const result3 = await User.find(query3).exec();
-            expect(result3).to.have.lengthOf(1);
+                const result3 = await User.find(query3).exec();
+                expect(result3).to.have.lengthOf(1);
 
-            const result4 = await User.find(query4).exec();
-            expect(result4).to.have.lengthOf(1);
+                const result4 = await User.find(query4).exec();
+                expect(result4).to.have.lengthOf(1);
 
-            const result5 = await User.find(query5).exec();
-            expect(result5).to.have.lengthOf(1);
+                const result5 = await User.find(query5).exec();
+                expect(result5).to.have.lengthOf(1);
 
-            const result6 = await User.find(query6).exec();
-            expect(result6).to.have.lengthOf(1);
+                const result6 = await User.find(query6).exec();
+                expect(result6).to.have.lengthOf(1);
+            });
+
+            it('should return decrypted documents', async function () {
+                const result = await User.find(query1).exec();
+                const user = result[0];
+
+                expect(user.__enc).to.be.an.instanceof(Buffer);
+                // expect(user.__sig).to.be.an.instanceof(Buffer);
+
+                expect(user.__hash.email).to.have.lengthOf(88);
+                expect(user.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
+
+                // Ensure values exist as plaintext after decryption
+                expect(user.email).to.be.a('string');
+                expect(user).to.have.property('secretDataObject');
+                expect(user).to.have.property('secretData');
+                expect(user.secretData.creditCardNumber).to.be.a('string');
+                expect(user.secretData.details.address).to.be.a('string');
+            });
         });
 
-        it('Model.findOne()', async function () {
-            const result1 = await User.findOne(query1).exec();
-            expect(result1.firstName).to.be.a('string');
+        describe('Model.findOne()', function () {
+            it('query #1-6', async function () {
+                const result1 = await User.findOne(query1).exec();
+                expect(result1.firstName).to.be.a('string');
 
-            const result2 = await User.findOne(query2).exec();
-            expect(result2.firstName).to.be.a('string');
+                const result2 = await User.findOne(query2).exec();
+                expect(result2.firstName).to.be.a('string');
 
-            const result3 = await User.findOne(query3).exec();
-            expect(result3.firstName).to.be.a('string');
+                const result3 = await User.findOne(query3).exec();
+                expect(result3.firstName).to.be.a('string');
 
-            const result4 = await User.findOne(query4).exec();
-            expect(result4.firstName).to.be.a('string');
+                const result4 = await User.findOne(query4).exec();
+                expect(result4.firstName).to.be.a('string');
 
-            const result5 = await User.findOne(query5).exec();
-            expect(result5.firstName).to.be.a('string');
+                const result5 = await User.findOne(query5).exec();
+                expect(result5.firstName).to.be.a('string');
 
-            const result6 = await User.findOne(query6).exec();
-            expect(result6.firstName).to.be.a('string');
+                const result6 = await User.findOne(query6).exec();
+                expect(result6.firstName).to.be.a('string');
+            });
+
+            it('should return decrypted documents', async function () {
+                const user = await User.findOne(query1).exec();
+
+                expect(user.__enc).to.be.an.instanceof(Buffer);
+                // expect(user.__sig).to.be.an.instanceof(Buffer);
+
+                expect(user.__hash.email).to.have.lengthOf(88);
+                expect(user.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
+
+                // Ensure values exist as plaintext after decryption
+                expect(user.email).to.be.a('string');
+                expect(user).to.have.property('secretDataObject');
+                expect(user).to.have.property('secretData');
+                expect(user.secretData.creditCardNumber).to.be.a('string');
+                expect(user.secretData.details.address).to.be.a('string');
+            });
         });
 
-        it('Model.count()', async function () {
-            const result1 = await User.count(query1).exec();
-            expect(result1).to.equal(1);
+        describe('Model.count()', function () {
+            it('query #1-6', async function () {
+                const result1 = await User.count(query1).exec();
+                expect(result1).to.equal(1);
 
-            const result2 = await User.count(query2).exec();
-            expect(result2).to.equal(1);
+                const result2 = await User.count(query2).exec();
+                expect(result2).to.equal(1);
 
-            const result3 = await User.count(query3).exec();
-            expect(result3).to.equal(1);
+                const result3 = await User.count(query3).exec();
+                expect(result3).to.equal(1);
 
-            const result4 = await User.count(query4).exec();
-            expect(result4).to.equal(1);
+                const result4 = await User.count(query4).exec();
+                expect(result4).to.equal(1);
 
-            const result5 = await User.count(query5).exec();
-            expect(result5).to.equal(1);
+                const result5 = await User.count(query5).exec();
+                expect(result5).to.equal(1);
 
-            const result6 = await User.count(query6).exec();
-            expect(result6).to.equal(1);
+                const result6 = await User.count(query6).exec();
+                expect(result6).to.equal(1);
+            });
         });
 
         describe('Model.findOneAndRemove()', function () {
@@ -772,70 +856,68 @@ describe('[Querying encrypted documents]', function () {
                 const result6 = await User.findOneAndRemove(query6).exec();
                 expect(result6.firstName).to.be.a('string');
             });
+
+            it('should return decrypted documents', async function () {
+                const user = await User.findOneAndRemove(query1).exec();
+
+                expect(user.__enc).to.be.an.instanceof(Buffer);
+                // expect(user.__sig).to.be.an.instanceof(Buffer);
+
+                expect(user.__hash.email).to.have.lengthOf(88);
+                expect(user.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
+
+                // Ensure values exist as plaintext after decryption
+                expect(user.email).to.be.a('string');
+                expect(user).to.have.property('secretDataObject');
+                expect(user).to.have.property('secretData');
+                expect(user.secretData.creditCardNumber).to.be.a('string');
+                expect(user.secretData.details.address).to.be.a('string');
+            });
         });
 
         describe('Model.findOneAndUpdate()', function () {
-            const update = {
-                email: 'updatedemail@gmail.com',
-                'secretData.details.address': '123'
-            };
+            it('it should throw an error when attempting to update encrypted fields', async function () {
+                const update = {
+                    email: 'updatedemail@gmail.com',
+                    'secretData.details.address': '123'
+                };
 
-            const find = {email: 'updatedemail@gmail.com'};
+                let error;
 
-            it('query #1', async function () {
-                const find1 = await User.findOneAndUpdate(query1, update).exec();
-                const find2 = await User.findOne(find).exec();
+                try {
+                    await User.findOneAndUpdate(query1, update).exec();
+                }
+                catch (err) {
+                    error = err;
+                }
 
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
+                expect(error).to.be.an('error');
+                expect(error.message).to.equal('Can not perform partial update of encrypted fields');
             });
 
-            it('query #4', async function () {
-                const find1 = await User.findOneAndUpdate(query4, update).exec();
-                const find2 = await User.findOne(find).exec();
+            it('it should perform an update when there are no encrypted fields in update', async function () {
+                const find1 = await User.findOneAndUpdate(query4, {firstName: 'John2'}).exec();
+                const find2 = await User.findOne({firstName: 'John2'}).exec();
 
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
+                expect(find1.firstName).to.equal('John');
+                expect(find2.firstName).to.equal('John2');
             });
 
-            it('query #5', async function () {
-                const find1 = await User.findOneAndUpdate(query5, update).exec();
-                const find2 = await User.findOne(find).exec();
+            it('should return decrypted documents', async function () {
+                const user = await User.findOneAndUpdate(query4, {firstName: 'John2'}).exec();
 
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
-            });
+                expect(user.__enc).to.be.an.instanceof(Buffer);
+                // expect(user.__sig).to.be.an.instanceof(Buffer);
 
-            it('query #6', async function () {
-                const find1 = await User.findOneAndUpdate(query6, update).exec();
-                const find2 = await User.findOne(find).exec();
+                expect(user.__hash.email).to.have.lengthOf(88);
+                expect(user.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
 
-                expect(find1.firstName).to.be.a('string');
-                expect(find1.email).to.be.an('undefined');
-                expect(find2.email).to.be.an('undefined');
-                expect(find2.email_c).to.not.be.an('undefined');
-                expect(find2.email_h).to.not.be.an('undefined');
-                expect(find1.email_c).to.not.deep.equal(find2.email_c);
-                expect(find1.email_h).to.not.deep.equal(find2.email_h);
-                expect(find1.secretData.details.address_c).to.not.deep.equal(find2.secretData.details.address_c);
+                // Ensure values exist as plaintext after decryption
+                expect(user.email).to.be.a('string');
+                expect(user).to.have.property('secretDataObject');
+                expect(user).to.have.property('secretData');
+                expect(user.secretData.creditCardNumber).to.be.a('string');
+                expect(user.secretData.details.address).to.be.a('string');
             });
         });
     });

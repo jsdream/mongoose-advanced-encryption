@@ -49,6 +49,14 @@ const defaultConfig = {
 - `sign`
 - `authenticate`
 
+## Querying
+- count
+- find
+- findOne
+- findOneAndRemove
+- findOneAndUpdate
+- update
+
 ## Security Issue Reporting / Disclaimer
 
 I am in no way a security expert. The plugin is a result of deep research on security-related topics,
@@ -61,7 +69,7 @@ For non-security-related issues, feel free to open a Github issue or pull reques
 
 Big thanks to [mongoose-encryption](https://github.com/joegoldbeck/mongoose-encryption) plugin authors for the source of inspiration.
 The `mongoose-encryption` plugin is great, but since authors decided to keep it simple for security reasons it is not sufficient enough
-for our use case.
+for our use case. That is why a decision to write a more "advanced" plugin was made.
 
 Also another big thanks goes to this [article](https://www.sitepoint.com/how-to-search-on-securely-encrypted-database-fields/) author.
 
