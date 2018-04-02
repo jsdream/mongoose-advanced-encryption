@@ -21,11 +21,27 @@ const schemaData = {
             hash: true
         }
     },
-    email: {
+    username: {
         type: String,
         encrypt: {
             hash: {
                 index: true
+            }
+        }
+    },
+    email: {
+        type: String,
+        encrypt: {
+            hash: {
+                unique: true
+            }
+        }
+    },
+    mainSkill: {
+        type: String,
+        encrypt: {
+            hash: {
+                sparse: true
             }
         }
     },
@@ -148,14 +164,16 @@ describe('[schema processing]', function () {
         });
 
         const exptectedFieldsToEncrypt = {
-            email: {hash: {index: true}},
+            username: {hash: {index: true}},
+            email: {hash: {unique: true}},
+            mainSkill: {hash: {sparse: true}},
             fullName: {hash: {index: false}},
             'secretData.creditCardNumber': {hash: {index: false}},
             'secretData.details.address': {hash: false},
             secretDataObject: {hash: false}
         };
 
-        const expectedFieldsWithHash = ['email', 'fullName', 'secretData.creditCardNumber'];
+        const expectedFieldsWithHash = ['username', 'email', 'mainSkill', 'fullName', 'secretData.creditCardNumber'];
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
         expect(UserSchema.encryption.fieldsWithHash).to.have.members(expectedFieldsWithHash);
@@ -176,14 +194,16 @@ describe('[schema processing]', function () {
         });
 
         const exptectedFieldsToEncrypt = {
-            email: {hash: {index: true}},
+            username: {hash: {index: true}},
+            email: {hash: {unique: true}},
+            mainSkill: {hash: {sparse: true}},
             fullName: {hash: {index: true}},
             'secretData.creditCardNumber': {hash: {index: true}},
             'secretData.details.address': {hash: false},
             secretDataObject: {hash: false}
         };
 
-        const expectedFieldsWithHash = ['email', 'fullName', 'secretData.creditCardNumber'];
+        const expectedFieldsWithHash = ['username', 'email', 'mainSkill', 'fullName', 'secretData.creditCardNumber'];
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
         expect(UserSchema.encryption.fieldsWithHash).to.have.members(expectedFieldsWithHash);
@@ -202,14 +222,16 @@ describe('[schema processing]', function () {
         });
 
         const exptectedFieldsToEncrypt = {
-            email: {hash: {index: true}},
+            username: {hash: {index: true}},
+            email: {hash: {unique: true}},
+            mainSkill: {hash: {sparse: true}},
             fullName: {hash: {index: false}},
             'secretData.creditCardNumber': {hash: false},
             'secretData.details.address': {hash: false},
             secretDataObject: {hash: false}
         };
 
-        const expectedFieldsWithHash = ['email', 'fullName'];
+        const expectedFieldsWithHash = ['username', 'email', 'mainSkill', 'fullName'];
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
         expect(UserSchema.encryption.fieldsWithHash).to.have.members(expectedFieldsWithHash);
@@ -228,14 +250,16 @@ describe('[schema processing]', function () {
         });
 
         const exptectedFieldsToEncrypt = {
-            email: {hash: {index: true}},
+            username: {hash: {index: true}},
+            email: {hash: {unique: true}},
+            mainSkill: {hash: {sparse: true}},
             fullName: {hash: {index: false}},
             'secretData.creditCardNumber': {hash: {index: false}},
             'secretData.details.address': {hash: false},
             secretDataObject: {hash: false}
         };
 
-        const expectedFieldsWithHash = ['email', 'fullName', 'secretData.creditCardNumber'];
+        const expectedFieldsWithHash = ['username', 'email', 'mainSkill', 'fullName', 'secretData.creditCardNumber'];
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
         expect(UserSchema.encryption.fieldsWithHash).to.have.members(expectedFieldsWithHash);
@@ -291,6 +315,90 @@ describe('[schema processing]', function () {
         };
 
         expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(expected);
+    });
+
+    it('should throw an error if index option was set for encrypted field', function () {
+        const UserSchema = new Schema({
+            email: {
+                type: String,
+                index: true,
+                encrypt: true
+            }
+        });
+
+        function attachPlugin () {
+            UserSchema.plugin(advancedEncryption, {
+                encryptionKey: encryptionKey,
+                hashingKey: hashingKey,
+                authenticationKey: authenticationKey,
+                encrypt: {
+                    hash: {
+                        index: true
+                    }
+                }
+            });
+        }
+
+        expect(attachPlugin).to.throw(
+            'SchemaType "index" option on encrypted path "email" is not supported. ' +
+            'It should be specified as "encrypt.hash.index" SchemaType option instead.'
+        );
+    });
+
+    it('should throw an error if unique option was set for encrypted field', function () {
+        const UserSchema = new Schema({
+            email: {
+                type: String,
+                unique: true,
+                encrypt: true
+            }
+        });
+
+        function attachPlugin () {
+            UserSchema.plugin(advancedEncryption, {
+                encryptionKey: encryptionKey,
+                hashingKey: hashingKey,
+                authenticationKey: authenticationKey,
+                encrypt: {
+                    hash: {
+                        index: true
+                    }
+                }
+            });
+        }
+
+        expect(attachPlugin).to.throw(
+            'SchemaType "unique" option on encrypted path "email" is not supported. ' +
+            'It should be specified as "encrypt.hash.unique" SchemaType option instead.'
+        );
+    });
+
+    it('should throw an error if sparse option was set for encrypted field', function () {
+        const UserSchema = new Schema({
+            email: {
+                type: String,
+                sparse: true,
+                encrypt: true
+            }
+        });
+
+        function attachPlugin () {
+            UserSchema.plugin(advancedEncryption, {
+                encryptionKey: encryptionKey,
+                hashingKey: hashingKey,
+                authenticationKey: authenticationKey,
+                encrypt: {
+                    hash: {
+                        index: true
+                    }
+                }
+            });
+        }
+
+        expect(attachPlugin).to.throw(
+            'SchemaType "sparse" option on encrypted path "email" is not supported. ' +
+            'It should be specified as "encrypt.hash.sparse" SchemaType option instead.'
+        );
     });
 
     it('should freeze schema.encryption object', function () {
@@ -452,16 +560,43 @@ describe('[encrypting/decrypting]', function () {
             expect(rawRecord.__hash.secretData.details).to.be.an('undefined');
         });
 
-        it('should create MongoDB index for fields with encrypt.hash.index === true', async function () {
+        it('should properly create MongoDB indexes', async function () {
             const user = new User(userData);
             await user.save();
             await User.ensureIndexes();
-            const indexes = await User.collection.getIndexes();
+            const indexes = await User.collection.indexInformation({full: true});
 
-            const expected = {
-                _id_: [[ '_id', 1 ]],
-                '__hash.email_1': [[ '__hash.email', 1 ]]
-            };
+            const expected = [
+                {
+                    v: 2,
+                    key: {_id: 1},
+                    name: '_id_',
+                    ns: 'mongoose-advanced-encryption-test.users'
+                },
+                {
+                    v: 2,
+                    key: {'__hash.username': 1},
+                    name: '__hash.username_1',
+                    ns: 'mongoose-advanced-encryption-test.users',
+                    background: true
+                },
+                {
+                    v: 2,
+                    unique: true,
+                    key: {'__hash.email': 1},
+                    name: '__hash.email_1',
+                    ns: 'mongoose-advanced-encryption-test.users',
+                    background: true
+                },
+                {
+                    v: 2,
+                    key: {'__hash.mainSkill': 1},
+                    name: '__hash.mainSkill_1',
+                    ns: 'mongoose-advanced-encryption-test.users',
+                    sparse: true,
+                    background: true
+                }
+            ];
 
             expect(indexes).to.deep.equal(expected);
         });
@@ -660,7 +795,7 @@ describe('[encrypting/decrypting]', function () {
         });
     });
 
-    describe('Model.insertMany()', function () {
+    describe('* Model.insertMany()', function () {
         it('it should save encrypted data to database #1', async function () {
             const results = await User.insertMany(userData);
             const mongooseDocument = results[0];
@@ -747,7 +882,7 @@ describe('[Querying encrypted documents]', function () {
 
     const User = mongoose.model('UserQuery', UserSchema);
 
-    describe('* should be able to query by full-match against encrypted fields which utilizing blind index', function () {
+    describe('(should be able to query by full-match against encrypted fields which utilizing blind index)', function () {
         beforeEach(async function () {
             const user = new User(userData);
             await user.save();
@@ -782,7 +917,7 @@ describe('[Querying encrypted documents]', function () {
             ]
         };
 
-        describe('Model.find()', function () {
+        describe('* Model.find()', function () {
             it('query #1-6', async function () {
                 const result1 = await User.find(query1).exec();
                 expect(result1).to.have.lengthOf(1);
@@ -822,7 +957,7 @@ describe('[Querying encrypted documents]', function () {
             });
         });
 
-        describe('Model.findOne()', function () {
+        describe('* Model.findOne()', function () {
             it('query #1-6', async function () {
                 const result1 = await User.findOne(query1).exec();
                 expect(result1.firstName).to.be.a('string');
@@ -861,7 +996,7 @@ describe('[Querying encrypted documents]', function () {
             });
         });
 
-        describe('Model.count()', function () {
+        describe('* Model.count()', function () {
             it('query #1-6', async function () {
                 const result1 = await User.count(query1).exec();
                 expect(result1).to.equal(1);
@@ -883,7 +1018,7 @@ describe('[Querying encrypted documents]', function () {
             });
         });
 
-        describe('Model.findOneAndRemove()', function () {
+        describe('* Model.findOneAndRemove()', function () {
             it('query #1', async function () {
                 const result1 = await User.findOneAndRemove(query1).exec();
                 expect(result1.firstName).to.be.a('string');
@@ -932,7 +1067,7 @@ describe('[Querying encrypted documents]', function () {
             });
         });
 
-        describe('Model.findOneAndUpdate()', function () {
+        describe('* Model.findOneAndUpdate()', function () {
             it('it should throw an error when attempting to update encrypted fields', async function () {
                 const update = {
                     email: 'updatedemail@gmail.com',
