@@ -469,9 +469,9 @@ describe('[encrypting/decrypting]', function () {
     const User = mongoose.model('User', UserSchema);
 
     describe('* document', function () {
-        it('should properly encrypt document fields when calling document.encrypt()', async function () {
+        it('should properly encrypt document fields when calling document.encEncrypt()', async function () {
             const user = new User(userData);
-            const encrypted = await user.encrypt();
+            const encrypted = await user.encEncrypt();
 
             // Ensure plaintext values are removed after encryption
             expect(encrypted.email).to.be.an('undefined');
@@ -492,10 +492,10 @@ describe('[encrypting/decrypting]', function () {
             expect(encrypted.__hash.secretData.details).to.be.an('undefined');
         });
 
-        it('should properly decrypt document fields when calling document.decrypt()', async function () {
+        it('should properly decrypt document fields when calling document.encDecrypt()', async function () {
             const user = new User(userData);
-            const encrypted = await user.encrypt();
-            const decrypted = await encrypted.decrypt();
+            const encrypted = await user.encEncrypt();
+            const decrypted = await encrypted.encDecrypt();
 
             expect(decrypted.__enc).to.be.an.instanceof(Buffer);
             expect(decrypted.__sig).to.be.an.instanceof(Buffer);
@@ -517,7 +517,7 @@ describe('[encrypting/decrypting]', function () {
                 lastName: 'Doe'
             });
 
-            const encrypted = await user.encrypt();
+            const encrypted = await user.encEncrypt();
 
             expect(encrypted).to.not.have.own.property('__hash');
             expect(encrypted.__enc).to.be.an('undefined');
@@ -617,19 +617,19 @@ describe('[encrypting/decrypting]', function () {
             await user.save();
 
             const encryptedValue = user.__enc;
-            await user.decrypt();
+            await user.encDecrypt();
 
             user.firstName = 'Jonathan';
 
             await user.save();
             const encryptedValue2 = user.__enc;
-            await user.decrypt();
+            await user.encDecrypt();
 
             user.email = 'newemail@gmail.com';
 
             await user.save();
             const encryptedValue3 = user.__enc;
-            await user.decrypt();
+            await user.encDecrypt();
 
             expect(encryptedValue).to.equal(encryptedValue2);
             expect(encryptedValue).to.not.equal(encryptedValue3);
@@ -638,7 +638,7 @@ describe('[encrypting/decrypting]', function () {
         it('should remove encrypted value if it\'s plaintext field value was set to undefined', async function () {
             const user = new User(userData);
             await user.save();
-            await user.decrypt();
+            await user.encDecrypt();
 
             expect(user.__enc).to.be.an.instanceof(Buffer);
             expect(user.__hash.email).to.have.lengthOf(88);
@@ -655,7 +655,7 @@ describe('[encrypting/decrypting]', function () {
         it('should remove hash if it\'s plaintext field value was set to undefined', async function () {
             const user = new User(userData);
             await user.save();
-            await user.decrypt();
+            await user.encDecrypt();
 
             expect(user.__enc).to.be.an.instanceof(Buffer);
             expect(user.__hash.email).to.have.lengthOf(88);

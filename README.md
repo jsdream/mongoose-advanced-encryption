@@ -23,6 +23,10 @@ If it's not specified plugin's [hard-coded config](#default-plugin-configuration
 
 `npm install mongoose-advanced-encryption --save`
 
+###### Generate encryption keys:
+`openssl rand -base64 32; openssl rand -base64 64; openssl rand -base64 64;`
+
+
 ## Plugin Options
 
 - `encryptionKey` - a 32-byte base64 string.
@@ -45,6 +49,8 @@ const defaultConfig = {
     }
 }
 ```
+
+vault write secret/{{env}}/{{service_name}}/database/encryptionKeys encryptionKey=bTd9/904z96NLxrWQjMgDOS7dxpSnGm5nZrWQW6P0sc= hashingKey=iw50ATzjQtbiYBN6u7Oga3LplAvltTqygOf/lg0Dwv1LtQoySDhfv6cleHpYvs8epoQDk32ALejM32jkf0X1aw== authenticationKey=IhcqE6HG+nhdvm70sRMSDBoW8QJHEyfSGSMG8LYo/ugvXdZjUAcsxYzVfG4P3Q2A+NI1ddOPSiQiLM7Hgb7MeA==
 
 ## Instance Methods
 
