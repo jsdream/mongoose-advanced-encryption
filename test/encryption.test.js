@@ -1137,6 +1137,79 @@ describe('[Authentication]', function () {
     const User = mongoose.model('UserAuth', UserSchema);
     const User2 = mongoose.model('UserAuth2', UserSchema);
 
+    it('should pass authentication if all authentication fields are selected', async function () {
+        await User.create(userData);
+
+        let user;
+        let error;
+
+        try {
+            user = await User.findOne({email: userData.email}).exec();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+        expect(user).to.have.property('email');
+    });
+
+    it('should pass authentication if none of authentication fields are selected', async function () {
+        await User.create(userData);
+
+        let user;
+        let error;
+
+        try {
+            user = await User.findOne({email: userData.email}).select('firstName lastName').exec();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+        expect(user.firstName).to.equal('John');
+        expect(user.lastName).to.equal('Doe');
+        expect(user.email).to.be.an('undefined');
+    });
+
+    it('should pass authentication if none of authentication fields are selected #2', async function () {
+        await User.create(userData);
+
+        let user;
+        let error;
+
+        try {
+            user = await User.findOne({email: userData.email}).select('firstName lastName -_id').exec();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+        expect(user._id).to.be.an('undefined');
+        expect(user.firstName).to.equal('John');
+        expect(user.lastName).to.equal('Doe');
+    });
+
+    it('should fail authentication if not all authentication fields are selected', async function () {
+        await User.create(userData);
+
+        let user;
+        let error;
+
+        try {
+            user = await User.findOne({email: userData.email}).select('firstName lastName __enc -_id').exec();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(user).to.be.an('undefined');
+        expect(error).to.be.an('error');
+        expect(error.message).to.equal('Document signature authentication failed. Either all or none authentication fields must be selected.');
+    });
+
     it('should fail authentication if document _id has changed', async function () {
         const user1 = await User.create(userData);
         const user2 = await User.create({email: 'seconduser@gmail.com'});
@@ -1177,6 +1250,8 @@ describe('[Authentication]', function () {
 
     afterEach(async function () {
         await User.remove({});
+        await User2.remove({});
         await User.collection.dropIndexes();
+        await User2.collection.dropIndexes();
     });
 });

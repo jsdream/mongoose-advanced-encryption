@@ -54,10 +54,10 @@ vault write secret/{{env}}/{{service_name}}/database/encryptionKeys encryptionKe
 
 ## Instance Methods
 
-- `encrypt`
-- `decrypt`
-- `sign`
-- `authenticate`
+- `encEncrypt`
+- `encDecrypt`
+- `encSign`
+- `encAuthenticate`
 
 ## Querying
 - count
