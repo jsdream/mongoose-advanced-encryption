@@ -622,6 +622,7 @@ describe('[encrypting/decrypting]', function () {
             user.firstName = 'Jonathan';
 
             await user.save();
+
             const encryptedValue2 = user.__enc;
             await user.encDecrypt();
 
@@ -1253,5 +1254,59 @@ describe('[Authentication]', function () {
         await User2.remove({});
         await User.collection.dropIndexes();
         await User2.collection.dropIndexes();
+    });
+});
+
+describe('Validation', function () {
+    const UserSchema = new Schema(schemaData);
+
+    UserSchema.plugin(advancedEncryption, {
+        encryptionKey: encryptionKey,
+        hashingKey: hashingKey,
+        authenticationKey: authenticationKey,
+        encrypt: {
+            hash: {
+                index: false
+            }
+        }
+    });
+
+    const User = mongoose.model('UserValidation', UserSchema);
+
+    it('should successfully pass document validation', async function () {
+        const user = await User.create(userData);
+
+        let error;
+
+        try {
+            await user.validate();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+    });
+
+    it('should successfully pass document validation #2', async function () {
+        await User.create(userData);
+        const user = await User.findOne({email: userData.email}).select('firstName lastName').exec();
+
+
+        let error;
+
+        try {
+            await user.validate();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+    });
+
+    afterEach(async function () {
+        await User.remove({});
+        await User.collection.dropIndexes();
     });
 });
