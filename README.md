@@ -33,6 +33,7 @@ If it's not specified plugin's [hard-coded config](#default-plugin-configuration
 - `hashingKey` - a 64-byte base64 string.
 - `authenticationKey` - a 64-byte base64 string.
 - `decryptAfterSave` - Enables automatic documents decryption passed to `doc.save()` callback.
+- `skipAuthenticationIfNoSignature` - Disables document authentication if document has no signature.
 - `encrypt` - Allows to adjust plugin's default field encryption options on per schema level. 
     These options can be overridden on per field level.  
     - `hash` - Indicates either hash should be created or not.

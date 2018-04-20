@@ -70,6 +70,7 @@ const schemaData = {
 const userData = {
     firstName: 'John',
     lastName: 'Doe',
+    username: 'johndoe',
     email: 'johndoesaved@gmail.com',
     secretData: {
         creditCardNumber: '12334566789',
@@ -1297,6 +1298,23 @@ describe('Validation', function () {
 
         try {
             await user.validate();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+    });
+
+    it.only('should successfully pass document validation on save', async function () {
+        await User.create(userData);
+        const user = await User.findOne({email: userData.email}).select('firstName lastName').exec();
+
+
+        let error;
+
+        try {
+            await user.save();
         }
         catch (err) {
             error = err;
