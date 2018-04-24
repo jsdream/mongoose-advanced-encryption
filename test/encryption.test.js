@@ -164,7 +164,7 @@ describe('[schema processing]', function () {
             }
         });
 
-        const exptectedFieldsToEncrypt = {
+        const expectedFieldsToEncrypt = {
             username: {hash: {index: true}},
             email: {hash: {unique: true}},
             mainSkill: {hash: {sparse: true}},
@@ -176,7 +176,7 @@ describe('[schema processing]', function () {
 
         const expectedFieldsWithHash = ['username', 'email', 'mainSkill', 'fullName', 'secretData.creditCardNumber'];
 
-        expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(exptectedFieldsToEncrypt);
+        expect(UserSchema.encryption.fieldsToEncrypt).to.deep.equal(expectedFieldsToEncrypt);
         expect(UserSchema.encryption.fieldsWithHash).to.have.members(expectedFieldsWithHash);
     });
 
@@ -524,6 +524,28 @@ describe('[encrypting/decrypting]', function () {
             expect(encrypted.__enc).to.be.an('undefined');
             expect(encrypted.__sig).to.be.an('undefined');
         });
+
+
+        it('should not encrypt already encrypted document', async function () {
+            const user = new User(userData);
+            const encrypted = await user.encEncrypt();
+            const encrypted2 = await encrypted.encEncrypt();
+
+            const decrypted = await encrypted2.encDecrypt();
+
+            expect(decrypted.__enc).to.be.an.instanceof(Buffer);
+            expect(decrypted.__sig).to.be.an.instanceof(Buffer);
+
+            expect(decrypted.__hash.email).to.have.lengthOf(88);
+            expect(decrypted.__hash.secretData.creditCardNumber).to.have.lengthOf(88);
+
+            // Ensure values exist as plaintext after decryption
+            expect(decrypted.email).to.be.a('string');
+            expect(decrypted).to.have.property('secretDataObject');
+            expect(decrypted).to.have.property('secretData');
+            expect(decrypted.secretData.creditCardNumber).to.be.a('string');
+            expect(decrypted.secretData.details.address).to.be.a('string');
+        });
     });
 
     describe('* document.save()', function () {
@@ -564,7 +586,7 @@ describe('[encrypting/decrypting]', function () {
         it('should properly create MongoDB indexes', async function () {
             const user = new User(userData);
             await user.save();
-            await User.ensureIndexes();
+            await User.ensureIndexes({background: false});
             const indexes = await User.collection.indexInformation({full: true});
 
             const expected = [
@@ -798,6 +820,21 @@ describe('[encrypting/decrypting]', function () {
     });
 
     describe('* Model.insertMany()', function () {
+        it('it should throw an error', async function () {
+            let error;
+
+            try {
+                await User.insertMany(userData);
+            }
+            catch (err) {
+                error = err;
+            }
+
+            expect(error).to.be.an('error');
+            expect(error.message).to.equal('insertMany method can not be used with encrypted model');
+        });
+
+        /*
         it('it should save encrypted data to database #1', async function () {
             const results = await User.insertMany(userData);
             const mongooseDocument = results[0];
@@ -860,6 +897,7 @@ describe('[encrypting/decrypting]', function () {
             expect(rawRecord.__hash.email).to.be.a('string');
             expect(rawRecord.__hash.secretData.creditCardNumber).to.be.a('string');
         });
+        */
     });
 
     afterEach(async function () {
@@ -1306,7 +1344,7 @@ describe('Validation', function () {
         expect(error).to.be.an('undefined');
     });
 
-    it.only('should successfully pass document validation on save', async function () {
+    it('should successfully pass document validation on save', async function () {
         await User.create(userData);
         const user = await User.findOne({email: userData.email}).select('firstName lastName').exec();
 
