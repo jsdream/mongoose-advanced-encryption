@@ -58,8 +58,10 @@ const defaultConfig = {
 - `encSign`
 - `encAuthenticate`
 
-## Querying
+## Supported query methods
+With the methods below encryption/decryption works transparently.
 - count
+- countDocuments
 - find
 - findOne
 - findOneAndRemove
