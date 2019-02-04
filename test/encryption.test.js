@@ -1058,6 +1058,28 @@ describe('[Querying encrypted documents]', function () {
             });
         });
 
+        describe('* Model.countDocuments()', function () {
+            it('query #1-6', async function () {
+                const result1 = await User.countDocuments(query1).exec();
+                expect(result1).to.equal(1);
+
+                const result2 = await User.countDocuments(query2).exec();
+                expect(result2).to.equal(1);
+
+                const result3 = await User.countDocuments(query3).exec();
+                expect(result3).to.equal(1);
+
+                const result4 = await User.countDocuments(query4).exec();
+                expect(result4).to.equal(1);
+
+                const result5 = await User.countDocuments(query5).exec();
+                expect(result5).to.equal(1);
+
+                const result6 = await User.countDocuments(query6).exec();
+                expect(result6).to.equal(1);
+            });
+        });
+
         describe('* Model.findOneAndRemove()', function () {
             it('query #1', async function () {
                 const result1 = await User.findOneAndRemove(query1).exec();
