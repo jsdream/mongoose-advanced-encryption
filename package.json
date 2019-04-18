@@ -1,6 +1,6 @@
 {
   "name": "mongoose-advanced-encryption",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "description": "Mongoose plugin for document fields encryption and authentication.",
   "main": "index.js",
   "scripts": {
