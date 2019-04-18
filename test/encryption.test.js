@@ -820,7 +820,7 @@ describe('[encrypting/decrypting]', function () {
     });
 
     describe('* Model.insertMany()', function () {
-        it('it should throw an error', async function () {
+        it('it should throw an error #1', async function () {
             let error;
 
             try {
@@ -831,12 +831,26 @@ describe('[encrypting/decrypting]', function () {
             }
 
             expect(error).to.be.an('error');
-            expect(error.message).to.equal('insertMany method can not be used with encrypted model');
+            expect(error.message).to.equal('insertMany method can only be used with mongoose documents, but not plain objects');
         });
 
-        /*
+        it('it should throw an error #2', async function () {
+            let error;
+
+            try {
+                await User.insertMany([userData, userData, userData]);
+            }
+            catch (err) {
+                error = err;
+            }
+
+            expect(error).to.be.an('error');
+            expect(error.message).to.equal('insertMany method can only be used with mongoose documents, but not plain objects');
+        });
+
         it('it should save encrypted data to database #1', async function () {
-            const results = await User.insertMany(userData);
+            const results = await User.insertMany(new User(userData));
+
             const mongooseDocument = results[0];
 
             expect(mongooseDocument.email).to.be.an('undefined');
@@ -867,7 +881,7 @@ describe('[encrypting/decrypting]', function () {
         });
 
         it('it should save encrypted data to database #2', async function () {
-            const results = await User.insertMany([userData, userData, userData]);
+            const results = await User.insertMany([new User(userData), new User(userData), new User(userData)]);
 
             const mongooseDocument = results[0];
 
@@ -897,11 +911,10 @@ describe('[encrypting/decrypting]', function () {
             expect(rawRecord.__hash.email).to.be.a('string');
             expect(rawRecord.__hash.secretData.creditCardNumber).to.be.a('string');
         });
-        */
     });
 
     afterEach(async function () {
-        await User.remove({});
+        await User.deleteMany({});
         await User.collection.dropIndexes();
     });
 });
@@ -1177,7 +1190,7 @@ describe('[Querying encrypted documents]', function () {
     });
 
     afterEach(async function () {
-        await User.remove({});
+        await User.deleteMany({});
         await User.collection.dropIndexes();
     });
 });
@@ -1311,8 +1324,8 @@ describe('[Authentication]', function () {
     });
 
     afterEach(async function () {
-        await User.remove({});
-        await User2.remove({});
+        await User.deleteMany({});
+        await User2.deleteMany({});
         await User.collection.dropIndexes();
         await User2.collection.dropIndexes();
     });
@@ -1384,7 +1397,7 @@ describe('Validation', function () {
     });
 
     afterEach(async function () {
-        await User.remove({});
+        await User.deleteMany({});
         await User.collection.dropIndexes();
     });
 });
