@@ -6,8 +6,6 @@ const expect = require('chai').expect;
 
 const advancedEncryption = require('../index');
 
-mongoose.connect('mongodb://localhost/mongoose-advanced-encryption-test');
-
 const encryptionKey = 'GKhd2bEkC9rFpzkouE0Q1Ut4N12W94Wnwm1x7jKx4QQ=';
 const hashingKey = '4eeCFsnX3QNf+Mm+2Sy6hCg1H31HEAxTjmx1vFqyfO4xYr7OhpfKargNmzCPQgObd9J1IHN9FCcy/71eyGx/zw==';
 const authenticationKey = 'pt5zK3xIhhw9A/Ij31OskRNqs5pleZ30M4FwZcG59XEltRITbWPp0bP0qUS2Z2CM2+xH3d+6Y5DwRXSJzWWk4g==';
@@ -83,6 +81,10 @@ const userData = {
         creditCardNumber: '6545646545645'
     }
 };
+
+before(async () => {
+    await mongoose.connect('mongodb://localhost/mongoose-advanced-encryption-test', {useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false});
+});
 
 after(async () => {
     await mongoose.connection.db.dropDatabase();
@@ -425,7 +427,7 @@ describe('[schema processing]', function () {
 
         expect(alterSchemaEncryptionOptions).to.throw(TypeError);
     });
-    
+
     describe('* schema augmentation', function () {
         const UserSchema = new Schema(schemaData);
 
@@ -453,7 +455,7 @@ describe('[schema processing]', function () {
     });
 });
 
-describe('[encrypting/decrypting]', function () {
+describe('[encrypting/decrypting]', async function () {
     const UserSchema = new Schema(schemaData);
 
     UserSchema.plugin(advancedEncryption, {
@@ -586,7 +588,7 @@ describe('[encrypting/decrypting]', function () {
         it('should properly create MongoDB indexes', async function () {
             const user = new User(userData);
             await user.save();
-            await User.ensureIndexes({background: false});
+            await User.createIndexes({background: false});
             const indexes = await User.collection.indexInformation({full: true});
 
             const expected = [
@@ -594,30 +596,26 @@ describe('[encrypting/decrypting]', function () {
                     v: 2,
                     key: {_id: 1},
                     name: '_id_',
-                    ns: 'mongoose-advanced-encryption-test.users'
                 },
                 {
                     v: 2,
                     key: {'__hash.username': 1},
                     name: '__hash.username_1',
-                    ns: 'mongoose-advanced-encryption-test.users',
-                    background: true
+                    background: false
                 },
                 {
                     v: 2,
                     unique: true,
                     key: {'__hash.email': 1},
                     name: '__hash.email_1',
-                    ns: 'mongoose-advanced-encryption-test.users',
-                    background: true
+                    background: false
                 },
                 {
                     v: 2,
                     key: {'__hash.mainSkill': 1},
                     name: '__hash.mainSkill_1',
-                    ns: 'mongoose-advanced-encryption-test.users',
                     sparse: true,
-                    background: true
+                    background: false
                 }
             ];
 
@@ -915,7 +913,11 @@ describe('[encrypting/decrypting]', function () {
 
     afterEach(async function () {
         await User.deleteMany({});
-        await User.collection.dropIndexes();
+
+        try {
+            await User.collection.dropIndexes({background: false});
+        }
+        catch (err) {}
     });
 });
 
