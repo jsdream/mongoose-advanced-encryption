@@ -1325,6 +1325,24 @@ describe('[Authentication]', function () {
         expect(error.message).to.equal('Document signature authentication failed');
     });
 
+    it('should not perform authentication if document has no cipher', async function () {
+        const user = await User.create({firstName: 'John', lastName: 'Doe'});
+
+        let error;
+        let user2;
+
+        try {
+            user2 = await User.findOne({_id: user._id}).exec();
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error).to.be.an('undefined');
+        expect(user2.firstName).to.be.equal('John');
+        expect(user2.lastName).to.be.equal('Doe');
+    });
+
     afterEach(async function () {
         await User.deleteMany({});
         await User2.deleteMany({});
